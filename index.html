@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Estudo de Expansão Elgin</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+  <style>
+    body { margin: 0; font-family: 'Segoe UI', Arial, sans-serif; background: #f5f7fb; color: #333; }
+    .header { display:flex; align-items:center; gap:20px; padding:16px 24px; background: #fff; border-bottom: 1px solid #e5e9f2; }
+    .logo svg { height:36px; }
+    .title { font-size: 28px; color: #2F3B52; }
+    .container { display:flex; }
+    .sidebar { width: 280px; background: #fff; border-right: 1px solid #e5e9f2; padding: 16px; }
+    .content { flex:1; padding:16px; }
+    .legend { display:flex; gap:16px; align-items:center; padding:8px 0 16px; }
+    .legend .dot { width:10px; height:10px; border-radius:50%; display:inline-block; margin-right:6px; }
+    .filters select { width:100%; margin-bottom:10px; padding:8px; border-radius:8px; border:1px solid #ccc; }
+    .reset-btn { margin-top:10px; background:#F39C12; color:#fff; border:none; padding:10px; border-radius:8px; cursor:pointer; width:100%; }
+    .tabs { display:flex; gap:8px; margin-bottom:10px; }
+    .tab-btn { background:#e6f3f8; color:#2F3B52; border:none; padding:8px 12px; border-radius:8px; cursor:pointer; }
+    .tab-btn.active { background:#1A76B7; color:#fff; }
+    #map { height: 540px; width: 100%; border-radius:12px; box-shadow: 0 2px 6px rgba(0,0,0,.06); }
+    .table { background: #fff; border-radius:12px; padding:12px; box-shadow: 0 2px 6px rgba(0,0,0,.06); margin-top:12px; }
+    table { width:100%; border-collapse:collapse; }
+    th, td { padding:8px 10px; border-bottom:1px solid #eef2f7; font-size:14px; }
+    th { background:#f6fbfe; color:#2F3B52; text-align:left; }
+    .kpis { display:grid; grid-template-columns: repeat(2, minmax(200px, 1fr)); gap:12px; margin:12px 0; }
+    .card { background: #fff; border-radius:12px; padding:16px; box-shadow: 0 2px 6px rgba(0,0,0,.06); }
+    .card h3 { margin:0; font-size:13px; color:#6b7a90; }
+    .card .value { font-size:26px; color:#2F3B52; font-weight:700; }
+    .hidden { display:none; }
+  </style>
+</head>
+
+<body>
+<div class="header">
+  <div class="logo">
+    <svg viewBox="0 0 200 50">
+      <text x="0" y="36" fill="#1A76B7" font-size="36">ELGIN</text>
+    </svg>
+  </div>
+  <div class="title">Estudo de Expansão Elgin</div>
+</div>
+
+<div class="container">
+  <aside class="sidebar">
+    <div class="tabs">
+      <button class="tab-btn active" id="tabDashboard">Início</button>
+      <button class="tab-btn" id="tabBase">Base de dados</button>
+    </div>
+
+    <h2>Filtros</h2>
+    <div class="filters">
+      <select id="fornecedorFilter"><option value="">Fornecedor</option></select>
+      <select id="regiaoFilter"><option value="">Região</option></select>
+      <select id="ufFilter"><option value="">UF</option></select>
+      <select id="modalidadeFilter"><option value="">Modalidade</option></select>
+    </div>
+
+    <button class="reset-btn" onclick="resetFilters()">Resetar filtros</button>
+  </aside>
+
+  <main class="content">
+    <div id="viewDashboard">
+      <div id="map"></div>
+    </div>
+    <div id="viewBase" class="hidden"></div>
+  </main>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+/* =====================
+   DATA + COORDS
+   ===================== */
+// ⛔ MANTIDOS EXATAMENTE COMO SEU ARQUIVO ANEXO
+const DATA = [...];            // ← MANTENHA SEU DATA AQUI (sem alterar)
+const CITY_COORDS = {...};     // ← MANTENHA SEU CITY_COORDS AQUI
+
+const BRAND_BLUE = "#1A76B7";
+const OTHER_RED = "#8B0000";
+
+let map, markersLayer;
+
+/* =====================
+   INIT
+   ===================== */
+document.addEventListener('DOMContentLoaded', () => {
+  populateFilters();
+  setupMap();
+  updateAll(DATA);
+});
+
+/* =====================
+   MAPA
+   ===================== */
+function setupMap() {
+  map = L.map('map').setView([-14.235, -51.925], 4);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+  markersLayer = L.layerGroup().addTo(map);
+}
+
+/* =====================
+   FILTROS
+   ===================== */
+function populateFilters() {
+  fill('fornecedorFilter', [...new Set(DATA.map(d => d.Fornecedor))]);
+  fill('regiaoFilter', [...new Set(DATA.map(d => d.Região))]);
+  fill('ufFilter', [...new Set(DATA.map(d => d.UF))]);
+  fill('modalidadeFilter', [...new Set(DATA.map(d => d.Modalidade))]);
+
+  fornecedorFilter.onchange =
+  regiaoFilter.onchange =
+  ufFilter.onchange =
+  modalidadeFilter.onchange = applyFilters;
+}
+
+function fill(id, values) {
+  const el = document.getElementById(id);
+  values.sort().forEach(v => el.innerHTML += `<option value="${v}">${v}</option>`);
+}
+
+/* =====================
+   🔴 CORREÇÃO DEFINITIVA
+   ===================== */
+function applyFilters() {
+  const fornecedor = fornecedorFilter.value;
+  const regiao = regiaoFilter.value;
+  const uf = ufFilter.value;
+  const modalidade = modalidadeFilter.value;
+
+  if (!fornecedor && !regiao && !uf && !modalidade) {
+    updateAll(DATA);
+    return;
+  }
+
+  const filtered = DATA.filter(d =>
+    (!fornecedor || d.Fornecedor === fornecedor) &&
+    (!regiao || d.Região === regiao) &&
+    (!uf || d.UF === uf) &&
+    (!modalidade || d.Modalidade === modalidade)
+  );
+
+  updateAll(filtered);
+}
+
+function resetFilters() {
+  fornecedorFilter.value = '';
+  regiaoFilter.value = '';
+  ufFilter.value = '';
+  modalidadeFilter.value = '';
+  updateAll(DATA);
+}
+
+/* =====================
+   RENDER
+   ===================== */
+function updateAll(arr) {
+  renderMarkers(arr);
+}
+
+function renderMarkers(arr) {
+  markersLayer.clearLayers();
+  arr.forEach(d => {
+    const c = CITY_COORDS[d.Locais];
+    if (!c) return;
+    const color = d.Fornecedor.toLowerCase().includes('elgin') ? BRAND_BLUE : OTHER_RED;
+    L.circleMarker(c, { radius:6, color }).addTo(markersLayer)
+      .bindPopup(`<b>${d.Fornecedor}</b><br>${d.Locais} / ${d.UF}`);
+  });
+}
+</script>
+</body>
+</html>
